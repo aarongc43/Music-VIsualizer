@@ -1,6 +1,4 @@
 .clangd
-fft
-fft.c
 fft_notes.md
 fftw-3.3.10/
 sql
