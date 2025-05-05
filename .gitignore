@@ -15,6 +15,18 @@
 *.mod*
 *.cmd
 *.hex
+build
+build.sh  # only if it's auto-generated or not essential
+Makefile  # only ignore if auto-generated (don't ignore if hand-written)
+run_tests*
+
+# === Test binaries ===
+run_tests_audio
+run_tests_event
+run_tests_fft
+
+# === Data output (if not version-controlled) ===
+database/
 
 # === Dependency / build folders ===
 build/
