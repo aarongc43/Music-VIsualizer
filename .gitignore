@@ -1,75 +1,78 @@
-.clangd
-fft_notes.md
-fftw-3.3.10/
-sql
-sql.c
-build.sh
-Bragi Beats
-Bragi\ Beats\ Code.zip 
-COSC\ 4460_Class\ Exercise\ 2.docx 
-System\ Design
-notes.md
-fft.c 
-fft_notes.md 
-sql.h 
-bragibeats
-.vscode
-.DS_Store
-Shakey Graves - Heartropolis/
-Men I Trust - Show Me How.wav
-Ross From Friends.wav
-run_tests
-
-### C ###
-# Prerequisites
-*.d
-
-# Object files
+# === Build artifacts ===
 *.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
 *.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
 *.so
-*.so.*
 *.dylib
-
-# Executables
 *.exe
 *.out
 *.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
 *.dSYM/
-*.su
-*.idb
+*.elf
+*.map
+*.obj
+*.ilk
 *.pdb
-
-# Kernel Module Compile Results
 *.mod*
 *.cmd
-.tmp_versions/
+*.hex
+
+# === Dependency / build folders ===
+build/
+bin/
+dist/
+tmp/
+*.log
+tmp_versions/
 modules.order
 Module.symvers
-Mkfile.old
-dkms.conf
+
+# === Editor/IDE files ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+*.bak
+*.tmp
+
+# === Test framework ===
+# Keep only Unity/src, ignore docs, examples, etc.
+tests/vendor/unity/auto/
+tests/vendor/unity/docs/
+tests/vendor/unity/examples/
+tests/vendor/unity/extras/
+tests/vendor/unity/test/
+tests/vendor/unity/*.txt
+tests/vendor/unity/*.cmake
+tests/vendor/unity/*.json
+tests/vendor/unity/CMakeLists.txt
+tests/vendor/unity/meson*
+tests/vendor/unity/platformio-build.py
+
+# === Project-specific ignores ===
+Bragi Beats*
+Bragi Beats Code.zip
+System Design*
+run_tests
+*.zip
+*.docx
+notes.md
+fft_notes.md
+sql
+sql.c
+sql.h
+fft
+fft.c
+bragibeats
+
+# === Audio/media files ===
+*.wav
+*.mp3
+*.flac
+*.ogg
+
+# === OS trash ===
+Thumbs.db
+ehthumbs.db
+*.Trash-*
+
