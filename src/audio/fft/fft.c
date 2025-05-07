@@ -23,6 +23,10 @@ int fft_init(size_t N) {
     // allocate bit-rev table (N entries)
     size_t bytes_rev = N *sizeof(uint32_t);
     if (posix_memalign((void**)&g_bitrev_table, 64, bytes_rev) != 0) {
+        free(g_bitrev_table);
+        free(g_twiddle_table);
+        g_bitrev_table =  NULL;
+        g_twiddle_table = NULL;
         return -2;
     }
 
@@ -30,7 +34,9 @@ int fft_init(size_t N) {
     size_t bytes_tw = half * 2 * sizeof(float);
     if (posix_memalign((void**)&g_twiddle_table, 64, bytes_tw) != 0) {
         free(g_bitrev_table);
-        g_bitrev_table = NULL;
+        free(g_twiddle_table);
+        g_bitrev_table =  NULL;
+        g_twiddle_table = NULL;
         return -2;
     }
 
@@ -71,12 +77,58 @@ int fft_init(size_t N) {
 }
 
 void fft_compute(const float *time_data, float *out_mag) {
+    size_t N = g_fft_size;
+    if (!N || !time_data || !out_mag) return;
+
     for (size_t i = 0; i < N; ++i) {
         uint32_t j = g_bitrev_table[i];
         // real part
         g_data[2*j] = time_data[i];
         // imaginary part = 0
         g_data[2*j + 1] = 0.0f;
+    }
+
+    int levels = __builtin_ctz(N);
+
+    for (int s = 1; s <= levels; ++s) {
+        size_t m    = 1u << s;
+        size_t half = m >> 1;
+        size_t step = N / m;
+
+        for (size_t k = 0; k < N; k += m) {
+            for (size_t j = 0; j < half; ++j) {
+                size_t idx_even = k + j;
+                size_t idx_odd = idx_even + half;
+
+                // twiddle index = j * step
+                float wr = g_twiddle_table[2 * (j * step)];
+                float wi = g_twiddle_table[2 * (j * step) + 1];
+
+                float ur = g_data[2 * idx_even];
+                float ui = g_data[2 * idx_even + 1];
+                float vr = g_data[2 * idx_odd];
+                float vi = g_data[2 * idx_odd + 1];
+
+                // t = W * v
+                float tr = wr * vr - wi * vi;
+                float ti = wr * vi + wi * vr;
+
+                // u + t, u -t
+                g_data[2 * idx_even] =      ur + tr;
+                g_data[2 * idx_even + 1] =  ui + ti;
+                g_data[2 * idx_odd] =       ur - tr;
+                g_data[2 * idx_odd + 1] =   ui - ti;
+            }
+        }
+    }
+
+    // For real-input FFT, only bins 0…N/2−1 are unique
+    size_t halfN = N >> 1;
+    for (size_t k = 0; k < halfN; ++k) {
+        float re = g_data[2*k];
+        float im = g_data[2*k + 1];
+        // magnitude = sqrt(re^2 + im^2)
+        out_mag[k] = sqrtf(re * re + im * im);
     }
 }
 
