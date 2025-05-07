@@ -3,6 +3,11 @@
 #ifndef FFT_H
 #define FFT_H
 
+#define FFT_SUCCESS                0
+#define FFT_ERROR_BAD_SIZE        -1
+#define FFT_ERROR_OOM             -2
+#define FFT_ERROR_ALREADY_INIT    -3
+
 #include <stddef.h>
 
 /* initialize engine for size N. call only once */

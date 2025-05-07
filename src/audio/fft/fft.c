@@ -10,6 +10,11 @@ static float *g_twiddle_table = NULL;       // length of N/2 * 2
 static float *g_data;                       // length = 2 * g_fft_size
 
 int fft_init(size_t N) {
+    if (g_fft_size != 0) {
+        // Already initialized, caller must call fft_shutdown() first
+        return FFT_ERROR_ALREADY_INIT;
+    }
+
     // validate N: must be power of two between 128 and 8192
     if (N < 128 || N > 8192) {
         return -1;
@@ -17,7 +22,7 @@ int fft_init(size_t N) {
 
     // power-of-two check
     if ((N &(N - 1)) != 0) {
-        return -1;
+        return FFT_ERROR_BAD_SIZE;
     }
 
     // allocate bit-rev table (N entries)
@@ -27,7 +32,7 @@ int fft_init(size_t N) {
         free(g_twiddle_table);
         g_bitrev_table =  NULL;
         g_twiddle_table = NULL;
-        return -2;
+        return FFT_ERROR_OOM;
     }
 
     size_t half = N >> 1;
@@ -37,7 +42,7 @@ int fft_init(size_t N) {
         free(g_twiddle_table);
         g_bitrev_table =  NULL;
         g_twiddle_table = NULL;
-        return -2;
+        return FFT_ERROR_OOM;
     }
 
     int levels = __builtin_ctz(N);      // count trailing zeros == log2(N)
@@ -69,10 +74,16 @@ int fft_init(size_t N) {
         g_twiddle_table[2*k + 1] = sinf(ang);
     }
 
-    posix_memalign((void**)&g_data, 64, 2 * N * sizeof(float));
+    if (posix_memalign((void**)&g_data, 64, 2 * N * sizeof(float)) != 0) {
+        free(g_bitrev_table);
+        free(g_twiddle_table);
+        g_bitrev_table = NULL;
+        g_twiddle_table = NULL;
+        return FFT_ERROR_OOM;
+    }
 
     g_fft_size = N;
-    return 0;
+    return FFT_SUCCESS;
 
 }
 
