@@ -14,7 +14,7 @@
 int fft_init(size_t N);
 
 /* compute magnitudes of real input array */
-void fft_coompute(const float *time_data, float *out_mag);
+void fft_compute(const float *time_data, float *out_mag);
 
 /* tear down, free buffers */
 void fft_shutdown(void);
