@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
+#include<assert.h>
 
 static size_t g_fft_size = 0;
 static uint32_t *g_bitrev_table = NULL;     // length of N 
@@ -17,7 +18,7 @@ int fft_init(size_t N) {
 
     // validate N: must be power of two between 128 and 8192
     if (N < 128 || N > 8192) {
-        return -1;
+        return FFT_ERROR_BAD_SIZE;
     }
 
     // power-of-two check
@@ -27,23 +28,21 @@ int fft_init(size_t N) {
 
     // allocate bit-rev table (N entries)
     size_t bytes_rev = N *sizeof(uint32_t);
-    if (posix_memalign((void**)&g_bitrev_table, 64, bytes_rev) != 0) {
-        free(g_bitrev_table);
-        free(g_twiddle_table);
-        g_bitrev_table =  NULL;
-        g_twiddle_table = NULL;
+    uint32_t *tmp_rev = NULL;
+    if (posix_memalign((void**)&tmp_rev, 64, bytes_rev) != 0) {
         return FFT_ERROR_OOM;
     }
+    g_bitrev_table = tmp_rev;
 
     size_t half = N >> 1;
     size_t bytes_tw = half * 2 * sizeof(float);
-    if (posix_memalign((void**)&g_twiddle_table, 64, bytes_tw) != 0) {
+    float *tmp_tw = NULL;
+    if (posix_memalign((void**)&tmp_tw, 64, bytes_tw) != 0) {
         free(g_bitrev_table);
-        free(g_twiddle_table);
-        g_bitrev_table =  NULL;
-        g_twiddle_table = NULL;
+        g_bitrev_table = NULL;
         return FFT_ERROR_OOM;
     }
+    g_twiddle_table = tmp_tw;
 
     int levels = __builtin_ctz(N);      // count trailing zeros == log2(N)
     for (size_t i = 0; i < N; ++i) {
@@ -74,13 +73,15 @@ int fft_init(size_t N) {
         g_twiddle_table[2*k + 1] = sinf(ang);
     }
 
-    if (posix_memalign((void**)&g_data, 64, 2 * N * sizeof(float)) != 0) {
+    float *tmp_data = NULL;
+    if (posix_memalign((void**)&tmp_data, 64, 2 * N * sizeof(float)) != 0) {
         free(g_bitrev_table);
         free(g_twiddle_table);
         g_bitrev_table = NULL;
         g_twiddle_table = NULL;
         return FFT_ERROR_OOM;
     }
+    g_data = tmp_data;
 
     g_fft_size = N;
     return FFT_SUCCESS;
@@ -88,6 +89,10 @@ int fft_init(size_t N) {
 }
 
 void fft_compute(const float *time_data, float *out_mag) {
+    assert(g_fft_size > 0   && "fft_compute() called before fft_init()");
+    assert(time_data        && "fft_compute(): time_data is NULL");
+    assert(out_mag          && "fft_compute(): out_mag is NULL");
+
     size_t N = g_fft_size;
     if (!N || !time_data || !out_mag) return;
 

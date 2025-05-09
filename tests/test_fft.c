@@ -21,6 +21,15 @@ void test_fft_init_invalid_size(void) {
     TEST_ASSERT_EQUAL_size_t(0, fft_get_size());
 }
 
+void test_fft_double_init(void) {
+    TEST_ASSERT_EQUAL_INT(FFT_SUCCESS, fft_init(256));
+    TEST_ASSERT_EQUAL_INT(FFT_ERROR_ALREADY_INIT, fft_init(256));
+    fft_shutdown();
+    // after shutdown it works again
+    TEST_ASSERT_EQUAL_INT(FFT_SUCCESS, fft_init(256));
+    fft_shutdown();
+}
+
 void test_fft_sine_pure_bin5(void) {
     const size_t N = 256;
     const size_t k = 5;
