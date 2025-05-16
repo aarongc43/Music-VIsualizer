@@ -75,7 +75,6 @@ sql.h
 bragibeats
 
 # === Audio/media files ===
-*.wav
 *.mp3
 *.flac
 *.ogg
