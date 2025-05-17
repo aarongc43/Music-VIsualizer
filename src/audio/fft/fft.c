@@ -97,9 +97,14 @@ void fft_compute(const float *time_data, float *out_mag) {
     if (!N || !time_data || !out_mag) return;
 
     for (size_t i = 0; i < N; ++i) {
+        // window function - Hann
+        float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
+
+        // bit-reversed index
         uint32_t j = g_bitrev_table[i];
+
         // real part
-        g_data[2*j] = time_data[i];
+        g_data[2*j] = time_data[i] * w;
         // imaginary part = 0
         g_data[2*j + 1] = 0.0f;
     }
@@ -144,7 +149,8 @@ void fft_compute(const float *time_data, float *out_mag) {
         float re = g_data[2*k];
         float im = g_data[2*k + 1];
         // magnitude = sqrt(re^2 + im^2)
-        out_mag[k] = sqrtf(re * re + im * im);
+        // normalization 2.0f / N
+        out_mag[k] = (2.0f / N) * sqrtf(re * re + im * im);
     }
 }
 
