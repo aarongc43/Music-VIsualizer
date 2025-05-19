@@ -45,7 +45,7 @@ void test_fft_sine_pure_bin5(void) {
     }
 
     // compute FFT magnitudes
-    fft_compute(time_data, out_mag);
+    fft_compute_raw(time_data, out_mag);
 
     // find the index of maximum magnitude
     size_t max_i = 0;
@@ -73,7 +73,7 @@ void test_fft_zero_input(void) {
     float out_mag[N/2];
 
     TEST_ASSERT_EQUAL_INT(0, fft_init(N));
-    fft_compute(time_data, out_mag);
+    fft_compute_raw(time_data, out_mag);
     for (size_t i = 0; i < N/2; ++i) {
         TEST_ASSERT_EQUAL_FLOAT(0.0f, out_mag[i]);
     }
@@ -86,7 +86,7 @@ void test_fft_impulse(void) {
     time_data[0] = 1.0f;
 
     TEST_ASSERT_EQUAL_INT(0, fft_init(N));
-    fft_compute(time_data, out_mag);
+    fft_compute_raw(time_data, out_mag);
 
     // impulse yields equal magnitude 1 in all bins
     for (size_t i = 0; i < N/2; ++i) {
