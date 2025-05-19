@@ -30,7 +30,7 @@ void app_init(void) {
     SetTargetFPS(60);
 
     // Load test WAV
-    if (wav_load("tests/fixtures/test_mono_44k.wav", &g_track) != 0) {
+    if (wav_load("music/eta.wav", &g_track) != 0) {
         fprintf(stderr, "[app_core] ERROR: failed to load test WAV\n");
         exit(EXIT_FAILURE);
     }
