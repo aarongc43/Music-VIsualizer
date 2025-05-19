@@ -15,7 +15,7 @@ static int      g_win_w         = 0;
 static int      g_win_h         = 0;
 static float    g_max_radius    = 0.0f;
 
-bool cirlces_init(size_t bin_count, int screen_w, int screen_h) {
+bool circles_init(size_t bin_count, int screen_w, int screen_h) {
     g_circle_count  = bin_count;
     g_win_w         = screen_w;
     g_win_h         = screen_h;

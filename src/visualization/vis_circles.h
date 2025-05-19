@@ -16,7 +16,7 @@
     * @return true on success, false on allocation failure
 */
 
-bool cirlces_init(size_t bin_count, int screen_w, int screen_h);
+bool circles_init(size_t bin_count, int screen_w, int screen_h);
 
 /**
     * @brief Draw pulsing concentric circles using a subset of bins
