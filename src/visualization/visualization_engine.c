@@ -1,6 +1,6 @@
-// src/visualization/v_engine.c 
+// src/visualization/visualization_engine.c 
 
-#include "v_engine.h"
+#include "visualization_engine.h"
 #include "vis_bars.h"
 #include "vis_circles.h"
 
@@ -24,6 +24,10 @@ static bool     g_use_bars      = true;
 static bool     g_use_circles   = true;
 
 bool vis_init(int screen_width, int screen_height, size_t fft_size) {
+    if (fft_size == 0) {
+        return false;
+    }
+
     g_screen_w = screen_width;
     g_screen_h = screen_height;
     g_bin_count = fft_size / 2;

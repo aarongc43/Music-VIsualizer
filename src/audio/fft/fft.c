@@ -5,10 +5,11 @@
 #include <math.h>
 #include<assert.h>
 
-static size_t g_fft_size = 0;
-static uint32_t *g_bitrev_table = NULL;     // length of N 
-static float *g_twiddle_table = NULL;       // length of N/2 * 2
-static float *g_data;                       // length = 2 * g_fft_size
+static size_t    g_fft_size         = 0;
+static uint32_t *g_bitrev_table     = NULL;     // length of N 
+static float    *g_twiddle_table    = NULL;       // length of N/2 * 2
+static float    *g_data;                       // length = 2 * g_fft_size
+static float    *g_window_buf       = NULL;
 
 int fft_init(size_t N) {
     if (g_fft_size != 0) {
@@ -51,18 +52,6 @@ int fft_init(size_t N) {
         g_bitrev_table[i] = rev;
     }
 
-    // portable c 
-    /*
-    for (size_t i = 0; i < N; ++i) {
-        uint32_t rev = 0, x = i;
-        for (int b = 0; b < levels; ++b) {
-            rev = (rev << 1) | (x & 1);
-            x  >>= 1;
-        }
-        g_bitrev_table[i] = rev;
-    }
-    */
-
     // compute twiddle factors
     const float angle_step = -2.0f * M_PI / (float)N;
     for (size_t k = 0; k < half; ++k) {
@@ -83,12 +72,24 @@ int fft_init(size_t N) {
     }
     g_data = tmp_data;
 
+    // allocate window buffer
+    g_window_buf = malloc(N * sizeof(float));
+    if (!g_window_buf) {
+        free(g_bitrev_table);
+        free(g_twiddle_table);
+        free(g_data);
+        g_bitrev_table = NULL;
+        g_twiddle_table = NULL;
+        g_data = NULL;
+        return FFT_ERROR_OOM;
+    }
+
     g_fft_size = N;
     return FFT_SUCCESS;
 
 }
 
-void fft_compute(const float *time_data, float *out_mag) {
+void fft_compute_raw(const float *time_data, float *out_mag) {
     assert(g_fft_size > 0   && "fft_compute() called before fft_init()");
     assert(time_data        && "fft_compute(): time_data is NULL");
     assert(out_mag          && "fft_compute(): out_mag is NULL");
@@ -97,14 +98,11 @@ void fft_compute(const float *time_data, float *out_mag) {
     if (!N || !time_data || !out_mag) return;
 
     for (size_t i = 0; i < N; ++i) {
-        // window function - Hann
-        float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
-
         // bit-reversed index
         uint32_t j = g_bitrev_table[i];
 
         // real part
-        g_data[2*j] = time_data[i] * w;
+        g_data[2*j] = time_data[i];
         // imaginary part = 0
         g_data[2*j + 1] = 0.0f;
     }
@@ -148,13 +146,32 @@ void fft_compute(const float *time_data, float *out_mag) {
     for (size_t k = 0; k < halfN; ++k) {
         float re = g_data[2*k];
         float im = g_data[2*k + 1];
-        // magnitude = sqrt(re^2 + im^2)
-        // normalization 2.0f / N
-        out_mag[k] = (2.0f / N) * sqrtf(re * re + im * im);
+        out_mag[k] = sqrtf(re * re + im * im);
+    }
+}
+
+void fft_compute(const float *time_data, float *out_mag) {
+    size_t N = g_fft_size;
+
+    // apply hann window
+    for (size_t i = 0; i < N; ++i) {
+        float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
+        g_window_buf[i] = time_data[i] * w;
+    }
+
+    fft_compute_raw(g_window_buf, out_mag);
+
+    // apply normalization
+    float norm = 2.0f / (float)N;
+    size_t halfN = N >> 1;
+    for (size_t k = 0; k < halfN; ++k) {
+        out_mag[k] *= norm;
     }
 }
 
 void fft_shutdown(void) {
+    free(g_window_buf);
+    g_window_buf = NULL;
     free(g_bitrev_table);
     free(g_twiddle_table);
     free(g_data);

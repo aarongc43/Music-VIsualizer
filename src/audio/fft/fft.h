@@ -13,8 +13,11 @@
 /* initialize engine for size N. call only once */
 int fft_init(size_t N);
 
-/* compute magnitudes of real input array */
+/* compute magnitudes with window and 2.0/N normalization */
 void fft_compute(const float *time_data, float *out_mag);
+
+/* compute raw FFT magnitudes */
+void fft_compute_raw(const float *time_data, float *out_mag);
 
 /* tear down, free buffers */
 void fft_shutdown(void);
