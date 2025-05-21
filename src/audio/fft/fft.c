@@ -3,15 +3,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
-#include<assert.h>
+#include <assert.h>
 
 static size_t    g_fft_size         = 0;
 static uint32_t *g_bitrev_table     = NULL;     // length of N 
-static float    *g_twiddle_table    = NULL;       // length of N/2 * 2
-static float    *g_data;                       // length = 2 * g_fft_size
+static float    *g_twiddle_table    = NULL;     // length of N/2 * 2
+static float    *g_data;                        // length = 2 * g_fft_size
 static float    *g_window_buf       = NULL;
 
 int fft_init(size_t N) {
+    g_fft_size = 0;
+
     if (g_fft_size != 0) {
         // Already initialized, caller must call fft_shutdown() first
         return FFT_ERROR_ALREADY_INIT;
@@ -86,7 +88,6 @@ int fft_init(size_t N) {
 
     g_fft_size = N;
     return FFT_SUCCESS;
-
 }
 
 void fft_compute_raw(const float *time_data, float *out_mag) {
@@ -153,20 +154,14 @@ void fft_compute_raw(const float *time_data, float *out_mag) {
 void fft_compute(const float *time_data, float *out_mag) {
     size_t N = g_fft_size;
 
-    // apply hann window
+    // hann window
+    float window_sum = 0.0f;
     for (size_t i = 0; i < N; ++i) {
         float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
         g_window_buf[i] = time_data[i] * w;
     }
 
     fft_compute_raw(g_window_buf, out_mag);
-
-    // apply normalization
-    float norm = 2.0f / (float)N;
-    size_t halfN = N >> 1;
-    for (size_t k = 0; k < halfN; ++k) {
-        out_mag[k] *= norm;
-    }
 }
 
 void fft_shutdown(void) {
@@ -178,7 +173,6 @@ void fft_shutdown(void) {
     g_bitrev_table = NULL;
     g_twiddle_table = NULL;
     g_data = NULL;
-    g_fft_size = 0;
 }
 
 size_t fft_get_size(void) {

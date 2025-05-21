@@ -6,16 +6,18 @@
 #include "audio_engine.h"    // provides wav_load, wav_free, WAV type
 #include "fft/fft.h"         // provides fft_init, fft_compute, fft_shutdown
 #include <raylib.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define SCREEN_W  800
 #define SCREEN_H  600
-#define FFT_SIZE  1024
+#define FFT_SIZE  (1 << 13)
 
 static WAV    g_track;
 static float *g_time_buf = NULL;  // raw samples → floats
 static float *g_mag_buf  = NULL;  // magnitudes
+static Music g_music;
 
 // Event handler: called when FFT has produced magnitudes
 static void on_fft_ready(void *payload) {
@@ -30,14 +32,20 @@ void app_init(void) {
     SetTargetFPS(60);
 
     // Load test WAV
-    if (wav_load("music/eta.wav", &g_track) != 0) {
+    if (wav_load("music/love.wav", &g_track) != 0) {
         fprintf(stderr, "[app_core] ERROR: failed to load test WAV\n");
         exit(EXIT_FAILURE);
     }
 
+    int chans = g_track.num_channels;
+    printf("[INFO] WAV channels = %d\n", chans);
+
+    g_music = LoadMusicStream("music/love.wav");
+    PlayMusicStream(g_music);
+
     // Allocate FFT buffers
     g_time_buf = malloc(sizeof(float) * FFT_SIZE);
-    g_mag_buf  = malloc(sizeof(float) * (FFT_SIZE/2));
+    g_mag_buf  = malloc(sizeof(float) * (FFT_SIZE));
     if (!g_time_buf || !g_mag_buf) {
         fprintf(stderr, "[app_core] ERROR: buffer allocation failed\n");
         exit(EXIT_FAILURE);
@@ -60,16 +68,18 @@ void app_init(void) {
 }
 
 void app_run(void) {
-    size_t sample_pos = 0;
-
     while (!WindowShouldClose()) {
-        // Fill time buffer from WAV (mono 16-bit)
+        UpdateMusicStream(g_music);
+
+        float t = GetMusicTimePlayed(g_music);
+        size_t sample_pos = (size_t)(t * g_track.sample_rate);
+
+        // Fill time buffer from WAV (mono float)
         for (size_t i = 0; i < FFT_SIZE; ++i) {
-            if (sample_pos < g_track.num_samples) {
-                g_time_buf[i] = g_track.samples[sample_pos++] / 32768.0f;
-            } else {
-                g_time_buf[i] = 0.0f;
-            }
+            size_t frame = sample_pos + i;
+            g_time_buf[i] = (frame < g_track.num_samples)
+                          ? g_track.samples[frame]
+                          : 0.0f;
         }
 
         // Compute FFT magnitudes and emit event
@@ -78,8 +88,8 @@ void app_run(void) {
 
         // Draw
         BeginDrawing();
-          ClearBackground(BLACK);
-          vis_render();
+            ClearBackground(BLACK);
+            vis_render();
         EndDrawing();
     }
 }
@@ -93,6 +103,8 @@ void app_shutdown(void) {
     wav_free(&g_track);
     free(g_time_buf);
     free(g_mag_buf);
+
+    UnloadMusicStream(g_music);
 
     // Close audio & window
     CloseAudioDevice();

@@ -28,6 +28,16 @@ typedef struct {
 } WAVDataHeader;
 #pragma pack(pop)
 
+void downmix_to_mono(const float *in, float *out, size_t frames, int channels) {
+    for (size_t i = 0; i < frames; ++i) {
+        float sum = 0.0f;
+        const float *frame_ptr = in + i * channels;
+        for (int ch = 0; ch < channels; ++ch)
+            sum += frame_ptr[ch];
+        out[i] = sum / channels;
+    }
+}
+
 int wav_load(const char *filepath, WAV *out_wav) {
     FILE *f = fopen(filepath, "rb");
     if (!f) return -1;
@@ -82,13 +92,27 @@ int wav_load(const char *filepath, WAV *out_wav) {
     }
     fclose(f);
 
+    float *samples_f = malloc(sizeof(*samples_f) * samples_count * hdr.num_channels);
+    for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
+        samples_f[i] = buf[i] / 32768.0f;
+    }
+    free(buf);
+
+    if (hdr.num_channels > 1) {
+        float *mono = malloc(sizeof(*mono) * samples_count);
+        downmix_to_mono(samples_f, mono, samples_count, hdr.num_channels);
+        free(samples_f);
+        samples_f = mono;
+        hdr.num_channels = 1;
+    }
+
     /* populate out_wave */
     out_wav->audio_format   = hdr.audio_format;
     out_wav->num_channels   = hdr.num_channels;
     out_wav->sample_rate    = hdr.sample_rate;
     out_wav->bits_per_sample= hdr.bits_per_sample;
     out_wav->num_samples    = samples_count;
-    out_wav->samples        = buf;
+    out_wav->samples        = samples_f;
     return 0;
 }
 

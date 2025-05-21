@@ -74,8 +74,10 @@ TEST_MODULES_event_system := src/core/event_system.o
 TEST_MODULES_fft   := src/audio/fft/fft.o
 TEST_MODULES_visualization_engine   := src/visualization/visualization_engine.o \
                       src/visualization/vis_bars.o \
-                      src/visualization/vis_circles.o
+                      src/visualization/vis_circles.o \
+		      src/visualization/vis_utils.o
 TEST_MODULES_fft_verification := src/audio/fft/fft.o
+TEST_MODULES_vis_bars := src/visualization/vis_bars.o
 
 # Pattern to generate each run_tests_<name> rule
 define RUN_TEST
@@ -89,8 +91,9 @@ $(eval $(call RUN_TEST,event_system))
 $(eval $(call RUN_TEST,fft))
 $(eval $(call RUN_TEST,visualization_engine))
 $(eval $(call RUN_TEST,fft_verification))
+$(eval $(call RUN_TEST,vis_bars))
 
-test: run_tests_audio_engine run_tests_event_system run_tests_fft run_tests_visualization_engine run_tests_fft_verification
+test: run_tests_audio_engine run_tests_event_system run_tests_fft run_tests_visualization_engine run_tests_fft_verification run_tests_vis_bars
 
 # --------------------------------------------------------------------
 # Generic compilation rule

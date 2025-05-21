@@ -11,7 +11,7 @@ typedef struct {
     uint32_t sample_rate;       // e.g. 44100
     uint16_t bits_per_sample;   // total sample frames
     uint32_t num_samples;        // total number of sample frames
-    int16_t *samples;           // interleaved PCM samples
+    float *samples;           // interleaved PCM samples
 } WAV;
 
 /**
@@ -24,5 +24,12 @@ int wav_load(const char *filepath, WAV *out_wav);
 
 /** free the sample buffer inside a WAV */
 void wav_free(WAV *wav);
+
+/*
+ * @brief Downmixes 'in_frames x channels' float samples into mono
+ * in: [frame0_ch0, frame0_ch1, ..., frame1_ch0, ...]
+ * out: [mono_frame0, mono_frame1, ...]
+*/
+void downmix_to_mono(const float *in, float *out, size_t frames, int channels);
 
 #endif
