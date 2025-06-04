@@ -19,6 +19,11 @@ static float *g_time_buf = NULL;  // raw samples → floats
 static float *g_mag_buf  = NULL;  // magnitudes
 static Music g_music;
 
+static AudioStream  g_audio_stream  = { 0 };
+static Wave         g_wave          = { 0 };
+static size_t       g_wave_pos      = 0;        // how many samples pushed so far
+static size_t       g_samples_per_update = 0;
+
 // Event handler: called when FFT has produced magnitudes
 static void on_fft_ready(void *payload) {
     const float *mags = (const float *)payload;
@@ -31,7 +36,6 @@ void app_init(void) {
     InitAudioDevice();
     SetTargetFPS(60);
 
-    // Load test WAV
     if (wav_load("music/love.wav", &g_track) != 0) {
         fprintf(stderr, "[app_core] ERROR: failed to load test WAV\n");
         exit(EXIT_FAILURE);

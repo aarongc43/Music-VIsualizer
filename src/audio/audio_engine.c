@@ -7,19 +7,21 @@
 // https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 
 #pragma pack(push,1)
+
+// WAV header file 44 bytes
 typedef struct {
     char        chunk_id[4];        // "RIFF"
-    uint32_t    chunk_size;
+    uint32_t    chunk_size;         // size of entire file
     char        format[4];          // "WAVE"
-    //format subchunk
+    //format subchunk - describes audio format
     char        subchunck1_id[4];   // "fmt"
     uint32_t    subchunk1_size;     // 16 for PCM
     uint16_t    audio_format;       // PCM = 1
-    uint16_t    num_channels;
-    uint32_t    sample_rate;
-    uint32_t    byte_rate;
-    uint16_t    block_align;
-    uint16_t    bits_per_sample;
+    uint16_t    num_channels;       // mono or stereo
+    uint32_t    sample_rate;        // samples per second
+    uint32_t    byte_rate;          // bytes per second
+    uint16_t    block_align;        // bytes per sample frame
+    uint16_t    bits_per_sample;    // bits per samples
 } WAVHeader;
 
 typedef struct {
@@ -28,12 +30,16 @@ typedef struct {
 } WAVDataHeader;
 #pragma pack(pop)
 
+// Stereo turns to mono by averaging all channels
 void downmix_to_mono(const float *in, float *out, size_t frames, int channels) {
     for (size_t i = 0; i < frames; ++i) {
         float sum = 0.0f;
         const float *frame_ptr = in + i * channels;
+
+        // sum  all channels in the frame
         for (int ch = 0; ch < channels; ++ch)
             sum += frame_ptr[ch];
+        // averate out channels to create the mono sample
         out[i] = sum / channels;
     }
 }
