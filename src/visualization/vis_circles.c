@@ -5,9 +5,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define VIS_MAX_MAG         10000.0f;
 #define VIS_CIRCLE_COLOR    RED
-#define VIS_CIRCLE_STEPS    8
+#define VIS_CIRCLE_STEPS    12
 
 static Vector2  *g_centers      = NULL;
 static size_t   g_circle_count = 0;
@@ -38,12 +37,14 @@ void circles_render(const float *magnitudes) {
     if (step == 0) step = 1;
 
     for (size_t i = 0; i < g_circle_count; i += step) {
-        // normalize and clamp
-        float norm = magnitudes[i] / VIS_MAX_MAG;
+        // magnitudes are already normalized 0..1 by visualization engine
+        float norm = magnitudes[i];
+        if (norm < 0.0f) norm = 0.0f;
         if (norm > 1.0f) norm = 1.0f;
 
-        // radius scales with both magnitudes and its relative bin index
-        float radius = norm * g_max_radius * ((float)i / (float)g_circle_count);
+        // radius scales with magnitude; bias toward visibility on low bins
+        float bin_weight = 0.4f + 0.6f * ((float)i / (float)(g_circle_count ? g_circle_count : 1));
+        float radius = norm * g_max_radius * bin_weight;
 
         DrawCircleV(g_centers[i], radius, VIS_CIRCLE_COLOR);
     }

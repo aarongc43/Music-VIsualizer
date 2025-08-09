@@ -162,6 +162,15 @@ void fft_compute(const float *time_data, float *out_mag) {
     }
 
     fft_compute_raw(g_window_buf, out_mag);
+
+    // Normalize magnitudes to approximate 0 dBFS for a full-scale sine wave
+    // Single-sided spectrum scaling: 2/N, and compensate Hann coherent gain (~0.5)
+    // => overall scale ≈ 4/N across bins
+    const float scale = (N > 0) ? (4.0f / (float)N) : 0.0f;
+    size_t halfN = N >> 1;
+    for (size_t k = 0; k < halfN; ++k) {
+        out_mag[k] *= scale;
+    }
 }
 
 void fft_shutdown(void) {
