@@ -1,5 +1,3 @@
-# Makefile
-
 # --------------------------------------------------------------------
 # Directories & toolchain
 # --------------------------------------------------------------------
@@ -39,7 +37,7 @@ TARGET    := bragibeats
 # Phony targets
 # --------------------------------------------------------------------
 .PHONY: all test clean fft_bench \
-	run_tests_audio run_tests_event run_tests_fft run_tests_vis run_tests_fft_verification
+	run_tests_audio_engine run_tests_event_system run_tests_fft run_tests_visualization_engine run_tests_fft_verification
 
 # Default build
 all: $(TARGET)
@@ -50,36 +48,32 @@ $(TARGET): $(APP_OBJ)
 # --------------------------------------------------------------------
 # Bench compilation
 # --------------------------------------------------------------------
-# Compile the bench source
 tools/%.o: tools/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Link the bench executable
 fft_bench: $(BENCH_OBJ) src/audio/fft/fft.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 # --------------------------------------------------------------------
 # Unity framework
 # --------------------------------------------------------------------
-# Build Unity once
 $(UNITY_DIR)/src/unity.o: $(UNITY_DIR)/src/unity.c
 	@echo "Building Unity..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # --------------------------------------------------------------------
 # Test modules mapping
+#   (Update these to match what each test needs.)
 # --------------------------------------------------------------------
 TEST_MODULES_audio_engine := src/audio/audio_engine.o
 TEST_MODULES_event_system := src/core/event_system.o
-TEST_MODULES_fft   := src/audio/fft/fft.o
-TEST_MODULES_visualization_engine   := src/visualization/visualization_engine.o \
-                      src/visualization/vis_bars.o \
-                      src/visualization/vis_circles.o \
-		      src/visualization/vis_utils.o
+TEST_MODULES_fft          := src/audio/fft/fft.o
+TEST_MODULES_visualization_engine := src/visualization/visualization_engine.o \
+                                    src/visualization/vis_bars_full.o \
+                                    src/visualization/vis_utils.o
 TEST_MODULES_fft_verification := src/audio/fft/fft.o
-TEST_MODULES_vis_bars := src/visualization/vis_bars.o
+# Removed legacy vis_bars / vis_circles tests
 
-# Pattern to generate each run_tests_<name> rule
 define RUN_TEST
 run_tests_$(1): $(UNITY_DIR)/src/unity.o tests/test_$(1).o $$(TEST_MODULES_$(1))
 	$(CC) $(CFLAGS) $$^ -o $$@ $(LDFLAGS)
@@ -91,9 +85,8 @@ $(eval $(call RUN_TEST,event_system))
 $(eval $(call RUN_TEST,fft))
 $(eval $(call RUN_TEST,visualization_engine))
 $(eval $(call RUN_TEST,fft_verification))
-$(eval $(call RUN_TEST,vis_bars))
 
-test: run_tests_audio_engine run_tests_event_system run_tests_fft run_tests_visualization_engine run_tests_fft_verification run_tests_vis_bars
+test: run_tests_audio_engine run_tests_event_system run_tests_fft run_tests_visualization_engine run_tests_fft_verification
 
 # --------------------------------------------------------------------
 # Generic compilation rule

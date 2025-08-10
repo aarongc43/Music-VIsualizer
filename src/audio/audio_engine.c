@@ -32,15 +32,14 @@ typedef struct {
 
 // Stereo turns to mono by averaging all channels
 void downmix_to_mono(const float *in, float *out, size_t frames, int channels) {
+    if (!in || !out || frames == 0 || channels <= 0) return;
     for (size_t i = 0; i < frames; ++i) {
         float sum = 0.0f;
         const float *frame_ptr = in + i * channels;
-
-        // sum  all channels in the frame
-        for (int ch = 0; ch < channels; ++ch)
+        for (int ch = 0; ch < channels; ++ch) {
             sum += frame_ptr[ch];
-        // averate out channels to create the mono sample
-        out[i] = sum / channels;
+        }
+        out[i] = sum / (float)channels;
     }
 }
 
@@ -84,8 +83,21 @@ int wav_load(const char *filepath, WAV *out_wav) {
     }
 
     uint32_t bytes = data_hdr.subchunk2_size;
-    uint32_t samples_count = bytes / (hdr.num_channels * (hdr.bits_per_sample/8));
-    int16_t *buf = malloc(bytes);
+    uint32_t bytes_per_sample = hdr.bits_per_sample / 8;
+
+    if (bytes == 0 || bytes > 500000000) {
+        fclose(f);
+        return -11;
+    }
+
+    if (bytes % (hdr.num_channels * bytes_per_sample) != 0) {
+        fclose(f);
+        return -12;
+    }
+
+    uint32_t samples_count = bytes / (hdr.num_channels * bytes_per_sample);
+
+    void *buf = malloc(bytes);
     if (!buf) {
         fclose(f);
         return -5;
@@ -99,13 +111,41 @@ int wav_load(const char *filepath, WAV *out_wav) {
     fclose(f);
 
     float *samples_f = malloc(sizeof(*samples_f) * samples_count * hdr.num_channels);
-    for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
-        samples_f[i] = buf[i] / 32768.0f;
+    if (!samples_f) {
+        free(buf);
+        return -13;
     }
+    
+    if (hdr.bits_per_sample == 16) {
+        int16_t *buf16 = (int16_t*)buf;
+        for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
+            samples_f[i] = buf16[i] / 32768.0f;
+        }
+    } else if (hdr.bits_per_sample == 24) {
+        // 24-bit is usually stored as 3 bytes
+        uint8_t *buf8 = (uint8_t*)buf;
+        for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
+            // convert 3-byte little-endian to int32_t, then normalize
+            int32_t sample = (buf8[i*3]) | (buf8[i*3+1] << 8) | (buf8[i*3+2] << 16);
+            if (sample & 0x800000) sample |= 0xFF000000;
+            samples_f[i] = sample / 8388608.0f;
+        }
+    } else if (hdr.bits_per_sample == 32) {
+        int32_t *buf32 = (int32_t*)buf;
+        for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
+            samples_f[i] = buf32[i] / 2147483648.0f;
+        }
+    }
+
     free(buf);
 
     if (hdr.num_channels > 1) {
         float *mono = malloc(sizeof(*mono) * samples_count);
+        if (!mono) {
+            free(samples_f);
+            return -14;
+        }
+
         downmix_to_mono(samples_f, mono, samples_count, hdr.num_channels);
         free(samples_f);
         samples_f = mono;

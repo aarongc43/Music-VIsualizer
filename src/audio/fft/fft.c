@@ -12,11 +12,9 @@ static float    *g_data;                        // length = 2 * g_fft_size
 static float    *g_window_buf       = NULL;
 
 int fft_init(size_t N) {
-    g_fft_size = 0;
-
     if (g_fft_size != 0) {
         // Already initialized, caller must call fft_shutdown() first
-        return FFT_ERROR_ALREADY_INIT;
+        g_fft_size = N;
     }
 
     // validate N: must be power of two between 128 and 8192
@@ -155,13 +153,21 @@ void fft_compute(const float *time_data, float *out_mag) {
     size_t N = g_fft_size;
 
     // hann window
-    float window_sum = 0.0f;
     for (size_t i = 0; i < N; ++i) {
         float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
         g_window_buf[i] = time_data[i] * w;
     }
 
     fft_compute_raw(g_window_buf, out_mag);
+
+    // Normalize magnitudes to approximate 0 dBFS for a full-scale sine wave
+    // Single-sided spectrum scaling: 2/N, and compensate Hann coherent gain (~0.5)
+    // => overall scale ≈ 4/N across bins
+    const float scale = (N > 0) ? (4.0f / (float)N) : 0.0f;
+    size_t halfN = N >> 1;
+    for (size_t k = 0; k < halfN; ++k) {
+        out_mag[k] *= scale;
+    }
 }
 
 void fft_shutdown(void) {
