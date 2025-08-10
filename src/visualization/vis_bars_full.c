@@ -19,6 +19,9 @@ static float g_bar_w = 0.0f;
 static float g_hmax = 0.5f;      // max height in px (e.g., h * 0.5)
 static float g_gamma = 1.20f;     // perceptual curve; 1.0 = linear
 
+static float g_corner_px = 8.0f;
+static int g_corner_segs = 10;
+
 // Local thresholds so this module is self-contained
 #define MIN_BAR_PX   1.0f
 #define NOISE_GATE   0.0f        // input already smoothed; keep zero
@@ -121,7 +124,12 @@ void bars_full_render(const float *norm_bins_0_to_1)
         }
         c.a = 255;
 
-        DrawRectangleRec(r, c);
+        // --- rounded corners ---
+        // Clamp corner radius to the current bar size to avoid artifacts
+        float min_side   = fmaxf(1.0f, fminf(r.width, r.height));
+        float roundness  = fminf(1.0f, g_corner_px / min_side);
+
+        DrawRectangleRounded(r, roundness, g_corner_segs, c);
     }
 }
 

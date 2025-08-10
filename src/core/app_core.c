@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "colors.h"
 
 #define SCREEN_W  800
 #define SCREEN_H  600
@@ -92,7 +93,7 @@ void app_run(void) {
 
         // Draw
         BeginDrawing();
-            ClearBackground(BLACK);
+            ClearBackground(C_BLACK);
             vis_render();
         EndDrawing();
     }
