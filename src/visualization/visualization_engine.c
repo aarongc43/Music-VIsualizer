@@ -1,10 +1,10 @@
 // src/visualization/visualization_engine.c 
 
 #include "visualization_engine.h"
-#include "vis_bars.h"
-#include "vis_circles.h"
+#include "vis_bars_full.h"
 #include "vis_utils.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -23,16 +23,15 @@ static float    *g_smooth_prev[2]   = { NULL, NULL };
 static int       g_front = 0;
 
 // flags to enable/disable stytles
-static bool     g_use_bars      = true;
-static bool     g_use_circles   = true;
+static bool     g_use_bars   = true;
 
 // dB range for your meter
-#define VIS_MIN_DB        -50.0f  // Lower min dB for better dynamic range
+#define VIS_MIN_DB        -85.0f  // Lower min dB for better dynamic range
 #define VIS_MAX_DB          0.0f
 
 // temporal smoothing: lower α_attack → faster rise; higher α_decay → slower fall
-#define VIS_ALPHA_ATTACK    0.5f   // Faster attack for more responsive peaks
-#define VIS_ALPHA_DECAY     0.8f   // Slightly faster decay for more natural falloff
+#define VIS_ALPHA_ATTACK    0.80f   // slower rise
+#define VIS_ALPHA_DECAY     0.95f   // slower fall
 
 // spatial smoothing window (1 = average of k−1, k, k+1)
 #define VIS_SPATIAL_WINDOW  2      // Wider window for smoother transitions between bins
@@ -62,8 +61,7 @@ bool vis_init(int screen_width, int screen_height, size_t fft_size) {
     }
 
     // init sub-renderers; bail if either fails
-    if (!bars_init_full(g_bin_count, g_screen_w, g_screen_h, 64, 2.0f)) return false;
-    if (!circles_init(g_bin_count, g_screen_w, g_screen_h)) return false;
+    if (!bars_full_init(g_bin_count, g_screen_w, g_screen_h, 96, 2.0f, 4.0f)) return false;
 
     return true;
 }
@@ -104,7 +102,9 @@ void vis_update(const float *magnitudes, size_t bin_count) {
 
     // 4) Ease-out cubic for a more organic curve
     for (size_t k = 0; k < bin_count; ++k) {
-        dst[k] = vis_ease_out_cubic(dst[k]);
+        float w = sqrtf((k+1) / (float)bin_count);
+        float v = g_vis_buf[back][k] * w;
+        g_vis_buf[back][k] = v > 1.0f ? 1.0f : v;
     }
 
     // 5) Commit the flip
@@ -114,13 +114,11 @@ void vis_update(const float *magnitudes, size_t bin_count) {
 void vis_render(void) {
     const float *buf = g_vis_buf[g_front];
 
-    if (g_use_bars)     bars_render(buf);
-    if (g_use_circles)  circles_render(buf);
+    if (g_use_bars)     bars_full_render(buf);
 }
 
 void vis_shutdown(void) {
-    bars_shutdown();
-    circles_shutdown();
+    bars_full_shutdown();
     for (int i = 0; i < 2; ++i) {
         free(g_vis_buf[i]);
         g_vis_buf[i] = NULL;
