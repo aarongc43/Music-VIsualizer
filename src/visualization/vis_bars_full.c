@@ -55,16 +55,20 @@ bool bars_full_init(size_t bin_count,
     g_bars = (Bar*)malloc(sizeof(Bar) * bar_count);
     if (!g_bars) return false;
 
-    // Linear bin grouping across [0, g_fft_bins)
-    // (Keeps it simple and predictable; you can switch to log later.)
-    const float bins_per_bar = (float)g_fft_bins / (float)bar_count;
+    const float lo = 1.0f;
+    const float hi = (float)g_fft_bins;      // exclusive upper bound
+    const float L  = logf(hi / lo);
 
     for (size_t i = 0; i < bar_count; ++i) {
-        size_t s = (size_t)floorf(i * bins_per_bar);
-        size_t e = (size_t)floorf((i + 1) * bins_per_bar);
-        if (e <= s) e = s + 1;
-        s = clamp_size(s, 0, g_fft_bins - 1);
-        e = clamp_size(e, s + 1, g_fft_bins);
+        float a0 = (float)i       / (float)bar_count;
+        float a1 = (float)(i + 1) / (float)bar_count;
+
+        size_t s = (size_t)floorf(lo * expf(L * a0));
+        size_t e = (size_t)floorf(lo * expf(L * a1));
+
+        if (s < 1) s = 1;                  // skip DC bin
+        if (e <= s) e = s + 1;             // ensure at least one bin
+        if (e > g_fft_bins) e = g_fft_bins;
 
         g_bars[i].start_bin = s;
         g_bars[i].end_bin   = e;

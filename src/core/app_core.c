@@ -3,8 +3,8 @@
 #include "app_core.h"
 #include "event_system.h"
 #include "visualization_engine.h"
-#include "audio_engine.h"    // provides wav_load, wav_free, WAV type
-#include "fft/fft.h"         // provides fft_init, fft_compute, fft_shutdown
+#include "audio_engine.h"
+#include "fft/fft.h"
 #include <raylib.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -16,13 +16,13 @@
 #define FFT_SIZE  (1 << 13)
 
 static WAV    g_track;
-static float *g_time_buf = NULL;  // raw samples → floats
-static float *g_mag_buf  = NULL;  // magnitudes
+static float *g_time_buf = NULL;
+static float *g_mag_buf  = NULL;
 static Music g_music;
 
 static AudioStream  g_audio_stream  = { 0 };
 static Wave         g_wave          = { 0 };
-static size_t       g_wave_pos      = 0;        // how many samples pushed so far
+static size_t       g_wave_pos      = 0;
 static size_t       g_samples_per_update = 0;
 
 // Event handler: called when FFT has produced magnitudes
@@ -33,7 +33,7 @@ static void on_fft_ready(void *payload) {
 
 void app_init(void) {
     // Window & audio
-    InitWindow(SCREEN_W, SCREEN_H, "BragiBeats");
+    InitWindow(SCREEN_W, SCREEN_H, "Visualizer");
     InitAudioDevice();
     SetTargetFPS(60);
 

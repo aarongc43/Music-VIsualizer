@@ -106,6 +106,11 @@ void vis_update(const float *magnitudes, size_t bin_count) {
         float v = g_vis_buf[back][k] * w;
         g_vis_buf[back][k] = v > 1.0f ? 1.0f : v;
     }
+    //
+    // for (size_t k = 0; k < bin_count; ++k) {
+    //     float v = g_vis_buf[back][k];
+    //     g_vis_buf[back][k] = v > 1.0f ? 1.0f : v;
+    // }
 
     // 5) Commit the flip
     g_front = back;
