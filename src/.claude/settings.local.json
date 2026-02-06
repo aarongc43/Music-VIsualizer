@@ -1,8 +1,0 @@
-{
-  "enableAllProjectMcpServers": false,
-  "permissions": {
-    "allow": [
-      "Read(//Users/aaron/Projects/Music-Visualizer/**)"
-    ]
-  }
-}
