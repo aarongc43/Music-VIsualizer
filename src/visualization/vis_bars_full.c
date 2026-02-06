@@ -13,11 +13,15 @@ static Bar   *g_bars = NULL;
 static size_t g_bar_count = 0;
 static size_t g_fft_bins = 0;
 
-static int   g_w = 0, g_h = 0;
+static int   g_width = 0, g_height = 0;
 static float g_spacing = 0.0f;
 static float g_bar_w = 0.0f;
-static float g_hmax = 0.5f;      // max height in px (e.g., h * 0.5)
-static float g_gamma = 1.20f;     // perceptual curve; 1.0 = linear
+static float g_hmax = 0.5f;      // bars reach at most half window height
+// nonlinear scaling  curve applied to FFT magnitudes, which fixes perception
+// gamma = 1.0 linear
+// gamma > 1.0 boosts quieter bins, compresses loud ones
+// gamme < 1.0 exaggerates loud peaks
+static float g_gamma = 1.20f;
 
 static float g_corner_px = 8.0f;
 static int g_corner_segs = 10;
@@ -42,14 +46,14 @@ bool bars_full_init(size_t bin_count,
     if (bin_count < 2 || screen_w <= 0 || screen_h <= 0 || bar_count < 1) return false;
 
     g_fft_bins  = bin_count;              // typically N/2 from your pipeline
-    g_w         = screen_w;
-    g_h         = screen_h;
+    g_width         = screen_w;
+    g_height         = screen_h;
     g_bar_count = bar_count;
     g_spacing   = spacing_px;
-    g_hmax      = fmaxf(1.0f, max_height_ratio * (float)g_h);
+    g_hmax      = fmaxf(1.0f, max_height_ratio * (float)g_height);
 
     // geometry
-    g_bar_w = ((float)g_w - (bar_count + 1) * g_spacing) / (float)bar_count;
+    g_bar_w = ((float)g_width - (bar_count + 1) * g_spacing) / (float)bar_count;
     if (g_bar_w < 1.0f) g_bar_w = 1.0f;
 
     g_bars = (Bar*)malloc(sizeof(Bar) * bar_count);
@@ -76,7 +80,7 @@ bool bars_full_init(size_t bin_count,
         // precompute rect x/width; y/height filled per-frame
         g_bars[i].rect.x      = g_spacing + (float)i * (g_bar_w + g_spacing);
         g_bars[i].rect.width  = g_bar_w;
-        g_bars[i].rect.y      = (float)g_h;
+        g_bars[i].rect.y      = (float)g_height;
         g_bars[i].rect.height = 0.0f;
     }
     return true;
@@ -111,7 +115,7 @@ void bars_full_render(const float *norm_bins_0_to_1)
 
         Rectangle r = g_bars[i].rect;
         r.height = H;
-        r.y      = (float)g_h - H;
+        r.y      = (float)g_height - H;
 
         // color interpolation base→mid→peak
         Color c;

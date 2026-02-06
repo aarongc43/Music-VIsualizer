@@ -1,4 +1,4 @@
-// src/visualization/visualization_engine.c 
+// src/visualization/visualization_engine.c
 
 #include "visualization_engine.h"
 #include "vis_bars_full.h"

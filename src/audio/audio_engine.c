@@ -4,18 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+// https://www.mmsp.ece.mcgill.ca/Documents/Audiowave_ids/WAVE/WAVE.html
 
 #pragma pack(push,1)
 
 // WAV header file 44 bytes
 typedef struct {
-    char        chunk_id[4];        // "RIFF"
-    uint32_t    chunk_size;         // size of entire file
-    char        format[4];          // "WAVE"
-    //format subchunk - describes audio format
-    char        subchunck1_id[4];   // "fmt"
-    uint32_t    subchunk1_size;     // 16 for PCM
+    char        riff_id[4];         // "RIFF"
+    uint32_t    riff_size;          // size of entire file
+    char        wave_id[4];         // "WAVE"
+    char        fmt_id[4];          // "fmt"
+    uint32_t    fmt_size;           // 16 for PCM
     uint16_t    audio_format;       // PCM = 1
     uint16_t    num_channels;       // mono or stereo
     uint32_t    sample_rate;        // samples per second
@@ -25,8 +24,8 @@ typedef struct {
 } WAVHeader;
 
 typedef struct {
-    char        subchunk2_id[4];    // "data"
-    uint32_t    subchunk2_size;     // data bytes
+    char        id[4];    // "data"
+    uint32_t    size;     // data bytes
 } WAVDataHeader;
 #pragma pack(pop)
 
@@ -48,41 +47,58 @@ int wav_load(const char *filepath, WAV *out_wav) {
     if (!f) return -1;
 
     WAVHeader hdr;
-    /*
-     * size_t items_read = fread (
-     * void *ptr,       // where to store bytes
-     * size_t size,     // size of each item
-     * size_t count,    // number of items
-     * FILE *stream     // file handle
-     * )
-    */
     if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
         fclose(f);
         return -2;
     }
 
     /* validate RIFF/WAVE in header */
-    if (memcmp(hdr.chunk_id, "RIFF", 4) != 0 ||
-        memcmp(hdr.format, "WAVE", 4) != 0 ||
-        hdr.audio_format != 1 /* PCM format */) {
+    if (memcmp(hdr.riff_id,    "RIFF", 4) != 0 ||
+        memcmp(hdr.wave_id,      "WAVE", 4) != 0) {
         fclose(f);
         return -3;
     }
 
-    /* skip to "data" subchunk */
-    WAVDataHeader data_hdr;
-    while (fread(&data_hdr, sizeof(data_hdr), 1, f) == 1) {
-        if (memcmp(data_hdr.subchunk2_id, "data", 4) == 0) break;
-        /* skip unknown chunks */
-        fseek(f, data_hdr.subchunk2_size, SEEK_CUR);
+    // check invalid fmt chunk
+    if (hdr.fmt_size < 16) {
+            fclose(f);
+            return -3;
+        }
+
+    // allow PCM (1), IEEE float (3), WAVEwave_idEXTENSIBLE (0xFFFE)
+    if (hdr.audio_format != 1 &&
+        hdr.audio_format != 3 &&
+        hdr.audio_format != 0xFFFE) {
+        fclose(f);
+        return -3;
     }
 
-    if (memcmp(data_hdr.subchunk2_id, "data", 4) != 0) {
+    // if fmmt chunk is larger than 16 bytes, skip the rest
+    if (hdr.fmt_size > 16) {
+        long extra = (long)hdr.fmt_size - 16;
+        if (fseek(f, extra, SEEK_CUR) != 0) {
+            fclose(f);
+            return -3;
+        }
+    }
+
+    /* scan for data chunk */
+    WAVDataHeader data_hdr;
+    while (fread(&data_hdr, sizeof(data_hdr), 1, f) == 1) {
+        if (memcmp(data_hdr.id, "data", 4) == 0) break;
+        /* skip unknown chunks */
+        if (fseek(f, data_hdr.size, SEEK_CUR) != 0) {
+            fclose(f);
+            return -4;
+        }
+    }
+
+    if (memcmp(data_hdr.id, "data", 4) != 0) {
         fclose(f);
         return -4;
     }
 
-    uint32_t bytes = data_hdr.subchunk2_size;
+    uint32_t bytes = data_hdr.size;
     uint32_t bytes_per_sample = hdr.bits_per_sample / 8;
 
     if (bytes == 0 || bytes > 500000000) {
@@ -115,7 +131,7 @@ int wav_load(const char *filepath, WAV *out_wav) {
         free(buf);
         return -13;
     }
-    
+
     if (hdr.bits_per_sample == 16) {
         int16_t *buf16 = (int16_t*)buf;
         for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
@@ -131,14 +147,26 @@ int wav_load(const char *filepath, WAV *out_wav) {
             samples_f[i] = sample / 8388608.0f;
         }
     } else if (hdr.bits_per_sample == 32) {
-        int32_t *buf32 = (int32_t*)buf;
-        for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
-            samples_f[i] = buf32[i] / 2147483648.0f;
+        if (hdr.audio_format == 3) {
+            float *buf32 = (float *)buf;
+            for (uint32_t i = 0; i , samples_count * hdr.num_channels; ++i) {
+                samples_f[i] = buf32[i];
+            }
+        } else {
+            int32_t *buf32 = (int32_t *)buf;
+            for (uint32_t i = 0; i < samples_count * hdr.num_channels; ++i) {
+                samples_f[i] = buf32[i] / 2147483648.0f; // 2^31
+            }
         }
+    } else {
+        free(buf);
+        free(samples_f);
+        return -15;
     }
 
     free(buf);
 
+    // downmix to mono
     if (hdr.num_channels > 1) {
         float *mono = malloc(sizeof(*mono) * samples_count);
         if (!mono) {

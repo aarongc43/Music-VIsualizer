@@ -141,7 +141,7 @@ void fft_compute_raw(const float *time_data, float *out_mag) {
     }
 
     // For real-input FFT, only bins 0…N/2−1 are unique
-    size_t halfN = N >> 1;
+    size_t halfN = N / 2 + 1;
     for (size_t k = 0; k < halfN; ++k) {
         float re = g_data[2*k];
         float im = g_data[2*k + 1];
