@@ -1,0 +1,13 @@
+-std=c11
+-Wall
+-Wextra
+-O3
+-march=native
+-Iinclude
+-Isrc
+-Isrc/core
+-Isrc/audio
+-Isrc/audio/fft
+-Isrc/visualization
+-Itools
+-I/opt/homebrew/Cellar/raylib/5.5/include

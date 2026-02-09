@@ -31,7 +31,7 @@ TEST_OBJ  := $(TEST_SRC:.c=.o) $(UNITY_DIR)/src/unity.o
 BENCH_SRC := tools/fft_bench.c
 BENCH_OBJ := tools/fft_bench.o
 
-TARGET    := bragibeats
+TARGET    := visualizer
 
 # --------------------------------------------------------------------
 # Phony targets

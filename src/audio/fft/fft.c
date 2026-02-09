@@ -1,24 +1,41 @@
-#include "fft.h"
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <math.h>
 #include <assert.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "fft.h"
+
+#define FFT_MIN_SIZE 128u
+#define FFT_MAX_SIZE 8192u
+#define FFT_ALIGNMENT 64u
 
 static size_t    g_fft_size         = 0;
 static uint32_t *g_bitrev_table     = NULL;     // length of N 
 static float    *g_twiddle_table    = NULL;     // length of N/2 * 2
-static float    *g_data;                        // length = 2 * g_fft_size
+static float    *g_data             = NULL;     // length = 2 * g_fft_size
 static float    *g_window_buf       = NULL;
+
+static void fft_free_buffers(void) {
+    free(g_window_buf);
+    free(g_bitrev_table);
+    free(g_twiddle_table);
+    free(g_data);
+
+    g_window_buf = NULL;
+    g_bitrev_table = NULL;
+    g_twiddle_table = NULL;
+    g_data = NULL;
+}
 
 int fft_init(size_t N) {
     if (g_fft_size != 0) {
-        // Already initialized, caller must call fft_shutdown() first
-        g_fft_size = N;
+        // Caller must call fft_shutdown() before re-initializing.
+        return FFT_ERROR_ALREADY_INIT;
     }
 
-    // validate N: must be power of two between 128 and 8192
-    if (N < 128 || N > 8192) {
+    // validate N: must be power of two within the supported range
+    if (N < FFT_MIN_SIZE || N > FFT_MAX_SIZE) {
         return FFT_ERROR_BAD_SIZE;
     }
 
@@ -28,9 +45,9 @@ int fft_init(size_t N) {
     }
 
     // allocate bit-rev table (N entries)
-    size_t bytes_rev = N *sizeof(uint32_t);
+    size_t bytes_rev = N * sizeof(uint32_t);
     uint32_t *tmp_rev = NULL;
-    if (posix_memalign((void**)&tmp_rev, 64, bytes_rev) != 0) {
+    if (posix_memalign((void**)&tmp_rev, FFT_ALIGNMENT, bytes_rev) != 0) {
         return FFT_ERROR_OOM;
     }
     g_bitrev_table = tmp_rev;
@@ -38,9 +55,8 @@ int fft_init(size_t N) {
     size_t half = N >> 1;
     size_t bytes_tw = half * 2 * sizeof(float);
     float *tmp_tw = NULL;
-    if (posix_memalign((void**)&tmp_tw, 64, bytes_tw) != 0) {
-        free(g_bitrev_table);
-        g_bitrev_table = NULL;
+    if (posix_memalign((void**)&tmp_tw, FFT_ALIGNMENT, bytes_tw) != 0) {
+        fft_free_buffers();
         return FFT_ERROR_OOM;
     }
     g_twiddle_table = tmp_tw;
@@ -63,11 +79,8 @@ int fft_init(size_t N) {
     }
 
     float *tmp_data = NULL;
-    if (posix_memalign((void**)&tmp_data, 64, 2 * N * sizeof(float)) != 0) {
-        free(g_bitrev_table);
-        free(g_twiddle_table);
-        g_bitrev_table = NULL;
-        g_twiddle_table = NULL;
+    if (posix_memalign((void**)&tmp_data, FFT_ALIGNMENT, 2 * N * sizeof(float)) != 0) {
+        fft_free_buffers();
         return FFT_ERROR_OOM;
     }
     g_data = tmp_data;
@@ -75,12 +88,7 @@ int fft_init(size_t N) {
     // allocate window buffer
     g_window_buf = malloc(N * sizeof(float));
     if (!g_window_buf) {
-        free(g_bitrev_table);
-        free(g_twiddle_table);
-        free(g_data);
-        g_bitrev_table = NULL;
-        g_twiddle_table = NULL;
-        g_data = NULL;
+        fft_free_buffers();
         return FFT_ERROR_OOM;
     }
 
@@ -150,7 +158,12 @@ void fft_compute_raw(const float *time_data, float *out_mag) {
 }
 
 void fft_compute(const float *time_data, float *out_mag) {
+    assert(g_fft_size > 0   && "fft_compute() called before fft_init()");
+    assert(time_data        && "fft_compute(): time_data is NULL");
+    assert(out_mag          && "fft_compute(): out_mag is NULL");
+
     size_t N = g_fft_size;
+    if (!N || !time_data || !out_mag) return;
 
     // hann window
     for (size_t i = 0; i < N; ++i) {
@@ -171,14 +184,8 @@ void fft_compute(const float *time_data, float *out_mag) {
 }
 
 void fft_shutdown(void) {
-    free(g_window_buf);
-    g_window_buf = NULL;
-    free(g_bitrev_table);
-    free(g_twiddle_table);
-    free(g_data);
-    g_bitrev_table = NULL;
-    g_twiddle_table = NULL;
-    g_data = NULL;
+    fft_free_buffers();
+    g_fft_size = 0;
 }
 
 size_t fft_get_size(void) {

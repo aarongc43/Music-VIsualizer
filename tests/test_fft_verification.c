@@ -17,6 +17,11 @@
 static float *timebuf;
 static float *magbuf;
 
+static int g_max_bin_error;
+static float g_amp_min;
+static float g_amp_max;
+static float g_min_local_energy_ratio;
+
 static void gen_sine(float *x, size_t N, float f, float fs, float phase) {
     const float w = 2.0f * (float)M_PI * f / fs;
     for (size_t n = 0; n < N; ++n) x[n] = sinf(w * n + phase);
@@ -34,10 +39,20 @@ static void check_tone_at_bin(size_t k) {
     for (size_t i = 0; i < M; ++i) {
         if (magbuf[i] > vmax) { vmax = magbuf[i]; argmax = i; }
     }
-    // Windowing may shift by at most 1 bin due to numeric noise; allow ±1
+    // Windowing may shift by at most 1 bin due to numeric noise; allow +-1.
+    int bin_err = abs((int)argmax - (int)k);
+    if (bin_err > g_max_bin_error) {
+        g_max_bin_error = bin_err;
+    }
     TEST_ASSERT_INT_WITHIN(1, (int)k, (int)argmax);
 
     // 2) amplitude near 1.0 (Hann coherent gain corrected by 4/N)
+    if (vmax < g_amp_min) {
+        g_amp_min = vmax;
+    }
+    if (vmax > g_amp_max) {
+        g_amp_max = vmax;
+    }
     TEST_ASSERT_FLOAT_WITHIN(0.12f, 1.0f, vmax);
 
     // 3) energy concentrated within ±2 bins around the peak
@@ -46,15 +61,24 @@ static void check_tone_at_bin(size_t k) {
     size_t lo = (argmax > 2) ? argmax - 2 : 0;
     size_t hi = (argmax + 2 < M) ? argmax + 2 : (M - 1);
     for (size_t i = lo; i <= hi; ++i) local += magbuf[i] * magbuf[i];
-    TEST_ASSERT_TRUE( (local / (total + 1e-12f)) > 0.98f );
+    float local_ratio = local / (total + 1e-12f);
+    if (local_ratio < g_min_local_energy_ratio) {
+        g_min_local_energy_ratio = local_ratio;
+    }
+    TEST_ASSERT_TRUE(local_ratio > 0.98f);
 }
 
 void setUp(void) {
     TEST_ASSERT_EQUAL_INT(FFT_SUCCESS, fft_init(NFFT));
     timebuf = (float*)malloc(sizeof(float) * NFFT);
-    magbuf  = (float*)malloc(sizeof(float) * (NFFT/2));
+    magbuf  = (float*)malloc(sizeof(float) * (NFFT / 2 + 1));
     TEST_ASSERT_NOT_NULL(timebuf);
     TEST_ASSERT_NOT_NULL(magbuf);
+
+    g_max_bin_error = 0;
+    g_amp_min = 1e9f;
+    g_amp_max = -1e9f;
+    g_min_local_energy_ratio = 1.0f;
 }
 void tearDown(void) {
     free(timebuf); timebuf = NULL;
@@ -80,6 +104,13 @@ static void test_fft_log_sweep_100(void) {
         if (k >= M) k = M - 1;
         check_tone_at_bin(k);
     }
+
+    printf("[fft verify] steps=%zu max_bin_err=%d amp[min,max]=[%.6f, %.6f] min_local_ratio=%.6f\n",
+           steps,
+           g_max_bin_error,
+           g_amp_min,
+           g_amp_max,
+           g_min_local_energy_ratio);
 }
 
 int main(void) {
@@ -87,4 +118,3 @@ int main(void) {
     RUN_TEST(test_fft_log_sweep_100);
     return UNITY_END();
 }
-
