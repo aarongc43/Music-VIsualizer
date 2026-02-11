@@ -21,8 +21,6 @@ make all                    # Builds bragibeats executable
 # Clean build artifacts
 make clean                  # Removes all .o files and executables
 
-# Build FFT benchmark tool
-make fft_bench              # Builds performance testing tool
 ```
 
 ### Testing Commands
@@ -52,7 +50,6 @@ src/
 ├── core/           # Core application logic (main loop, event system)
 ├── audio/          # Audio processing, WAV loading, FFT
 ├── visualization/  # Rendering and visual effects
-└── tools/          # Utility tools (benchmarks, etc.)
 tests/              # Unit tests using Unity framework
 music/              # Audio files for testing
 ```
@@ -146,7 +143,7 @@ int wav_load(const char *filepath, WAV *out_wav);
 2. **Making changes**: Follow existing code patterns and naming conventions
 3. **Building**: Use `make all` to build the main application
 4. **Testing**: Run relevant individual tests or full test suite
-5. **Debugging**: Use `fft_bench` tool for performance testing
+5. **Debugging**: Use targeted unit tests to validate FFT performance changes
 
 ## Dependencies
 
