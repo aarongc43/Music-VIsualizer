@@ -148,4 +148,3 @@ void bars_full_shutdown(void)
     g_bar_count = 0;
     g_fft_bins = 0;
 }
-
