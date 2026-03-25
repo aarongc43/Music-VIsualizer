@@ -6,6 +6,7 @@
 #include "../audio/music_library.h"
 #include "../ui/music_browser_ui.h"
 #include "../visualization/visualization_engine.h"
+#include "../ui/ui_fonts.h"
 #include "colors.h"
 #include "event_system.h"
 
@@ -18,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SCREEN_W 800
-#define SCREEN_H 600
+#define SCREEN_W 1800
+#define SCREEN_H 1013
 #define RING_SECONDS 4
 
 #define MUSIC_DIR_PATH "music"
@@ -391,6 +392,11 @@ void app_init(void) {
         goto fail;
     }
 
+    if (!ui_fonts_init()) {
+        fprintf(stderr, "[app_core] ERROR: ui_fonts_init failed\n");
+        goto fail;
+    }
+
     if (music_library_scan(MUSIC_DIR_PATH, &g_library) != 0) {
         snprintf(g_status_text, sizeof(g_status_text), "Failed to scan %s", MUSIC_DIR_PATH);
         goto fail;
@@ -438,7 +444,7 @@ void app_run(void) {
         es_emit(EVT_FFT_READY, g_mag_buf);
 
         BeginDrawing();
-        ClearBackground(C_BLACK);
+        ClearBackground(C_BG);
         vis_render();
         music_browser_ui_draw(&g_library, g_status_text);
         EndDrawing();
@@ -456,6 +462,8 @@ void app_shutdown(void) {
     }
 
     music_library_free(&g_library);
+
+    ui_fonts_shutdown();
 
     if (g_audio_initialized) {
         CloseAudioDevice();

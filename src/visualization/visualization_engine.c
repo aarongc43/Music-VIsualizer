@@ -36,6 +36,9 @@ static bool     g_use_bars   = true;
 // spatial smoothing window (1 = average of k−1, k, k+1)
 #define VIS_SPATIAL_WINDOW  2      // Wider window for smoother transitions between bins
 
+// Keep the shared spectrum data neutral and control visual scale in the renderer.
+#define VIS_BARS_MAX_HEIGHT_RATIO 1.0f
+
 bool vis_init(int screen_width, int screen_height, size_t fft_size) {
     if (fft_size == 0) {
         return false;
@@ -61,7 +64,12 @@ bool vis_init(int screen_width, int screen_height, size_t fft_size) {
     }
 
     // init sub-renderers; bail if either fails
-    if (!bars_full_init(g_bin_count, g_screen_w, g_screen_h, 96, 2.0f, 4.0f)) return false;
+    if (!bars_full_init(g_bin_count,
+                        g_screen_w,
+                        g_screen_h,
+                        96,
+                        2.0f,
+                        VIS_BARS_MAX_HEIGHT_RATIO)) return false;
 
     return true;
 }
@@ -100,17 +108,12 @@ void vis_update(const float *magnitudes, size_t bin_count) {
         VIS_SPATIAL_WINDOW
     );
 
-    // 4) Ease-out cubic for a more organic curve
+    // 4) Clamp only. Keep renderer-specific weighting out of the shared pipeline
+    // so each visualizer can decide how to interpret the spectrum.
     for (size_t k = 0; k < bin_count; ++k) {
-        float w = sqrtf((k+1) / (float)bin_count);
-        float v = g_vis_buf[back][k] * w;
+        float v = g_vis_buf[back][k];
         g_vis_buf[back][k] = v > 1.0f ? 1.0f : v;
     }
-    //
-    // for (size_t k = 0; k < bin_count; ++k) {
-    //     float v = g_vis_buf[back][k];
-    //     g_vis_buf[back][k] = v > 1.0f ? 1.0f : v;
-    // }
 
     // 5) Commit the flip
     g_front = back;

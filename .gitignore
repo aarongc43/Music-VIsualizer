@@ -15,8 +15,6 @@
 *.mod*
 *.cmd
 *.hex
-build
-build.sh  # only if it's auto-generated or not essential
 run_tests*
 
 # === Test binaries ===
