@@ -11,17 +11,20 @@
 #define FFT_ALIGNMENT 64u
 
 static size_t    g_fft_size         = 0;
-static uint32_t *g_bitrev_table     = NULL;     // length of N 
+static uint32_t *g_bitrev_table     = NULL;     // length of N
 static float    *g_twiddle_table    = NULL;     // length of N/2 * 2
 static float    *g_data             = NULL;     // length = 2 * g_fft_size
-static float    *g_window_buf       = NULL;
+static float    *g_hann_coeff       = NULL;     // precomputed Hann window coefficients — written once in fft_init(), never changed
+static float    *g_window_buf       = NULL;     // scratch buffer — holds time_data * g_hann_coeff for the current frame
 
 static void fft_free_buffers(void) {
+    free(g_hann_coeff);
     free(g_window_buf);
     free(g_bitrev_table);
     free(g_twiddle_table);
     free(g_data);
 
+    g_hann_coeff = NULL;
     g_window_buf = NULL;
     g_bitrev_table = NULL;
     g_twiddle_table = NULL;
@@ -85,7 +88,18 @@ int fft_init(size_t N) {
     }
     g_data = tmp_data;
 
-    // allocate window buffer
+    // precompute Hann window coefficients — these depend only on N, which never
+    // changes after init, so there is no reason to recompute them each frame
+    g_hann_coeff = malloc(N * sizeof(float));
+    if (!g_hann_coeff) {
+        fft_free_buffers();
+        return FFT_ERROR_OOM;
+    }
+    for (size_t i = 0; i < N; ++i) {
+        g_hann_coeff[i] = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
+    }
+
+    // scratch buffer for windowed time-domain samples — overwritten every frame
     g_window_buf = malloc(N * sizeof(float));
     if (!g_window_buf) {
         fft_free_buffers();
@@ -165,10 +179,10 @@ void fft_compute(const float *time_data, float *out_mag) {
     size_t N = g_fft_size;
     if (!N || !time_data || !out_mag) return;
 
-    // hann window
+    // multiply input by precomputed Hann coefficients into scratch buffer —
+    // g_hann_coeff is never modified after fft_init(), so this is always correct
     for (size_t i = 0; i < N; ++i) {
-        float w = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (N - 1)));
-        g_window_buf[i] = time_data[i] * w;
+        g_window_buf[i] = time_data[i] * g_hann_coeff[i];
     }
 
     fft_compute_raw(g_window_buf, out_mag);
@@ -176,9 +190,11 @@ void fft_compute(const float *time_data, float *out_mag) {
     // Normalize magnitudes to approximate 0 dBFS for a full-scale sine wave
     // Single-sided spectrum scaling: 2/N, and compensate Hann coherent gain (~0.5)
     // => overall scale ≈ 4/N across bins
+    // N/2 + 1 bins: DC (bin 0) through Nyquist (bin N/2) inclusive.
+    // Using N>>1 would stop one short and leave the Nyquist bin unscaled.
     const float scale = (N > 0) ? (4.0f / (float)N) : 0.0f;
-    size_t halfN = N >> 1;
-    for (size_t k = 0; k < halfN; ++k) {
+    size_t bin_count = N / 2 + 1;
+    for (size_t k = 0; k < bin_count; ++k) {
         out_mag[k] *= scale;
     }
 }

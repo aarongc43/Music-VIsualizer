@@ -53,10 +53,15 @@ void vis_apply_spatial_smoothing(float *data,
     float temp[count];
     memcpy(temp, data, count * sizeof(float));
 
-    for (size_t k = window; k + window < count; ++k) {
+    // Process every bin — clamp neighbor indices to the array bounds at the edges
+    // so the first and last bins are smoothed rather than left untouched.
+    for (size_t k = 0; k < count; ++k) {
         float sum = 0.0f;
         for (int j = -(int)window; j <= (int)window; ++j) {
-            sum += data[k + j];
+            int idx = (int)k + j;
+            if (idx < 0)             idx = 0;
+            else if (idx >= (int)count) idx = (int)count - 1;
+            sum += data[idx];
         }
         temp[k] = sum / (2*window + 1);
     }
